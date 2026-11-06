@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ja" class="locked">
+<head>
+<meta charset="UTF-8">
+<title>Datavサンプル(PowerPointの一連の動きを再現)</title>
+<style>
+  html, body { margin: 0; background: #fff; }
+  /* 動きが終わるまではスクロールできない */
+  html.locked { overflow: hidden; }
+
+  /* 画面いっぱいの黒っぽい背景の中にスライドを置く */
+  .stage {
+    position: relative;
+    height: 100vh;
+    height: 100dvh;
+    display: grid;
+    place-items: center;
+    background: #333;
+  }
+
+  /* スライド(16:9)。PowerPointと同じ 12192000 x 6858000 の比率。
+     画面の外にはみ出た部分は見えない(先生は右の外から登場する) */
+  .slide {
+    position: relative;
+    width: min(100vw, 100vh * 16 / 9);
+    aspect-ratio: 16 / 9;
+    background: #fff;
+    overflow: hidden;
+    container-type: inline-size;
+    font-family: "Yu Gothic", "YuGothic", "Hiragino Sans", "Meiryo", sans-serif;
+  }
+  .slide img { position: absolute; display: block; user-select: none; -webkit-user-drag: none; }
+
+  /* 位置と大きさは pptx の数値から割合で計算 */
+  #kids    { left: 38.28125%; top: 29.16667%; width: 23.43750%; }
+  #teacher { left: 69.28571%; top: 0; width: 11.66667%; visibility: hidden; }
+  #angry   { left: 64.70238%; top: 0; width: 20.83333%; visibility: hidden; }
+
+  #bubble  { position: absolute; inset: 0; width: 100%; height: 100%; visibility: hidden; pointer-events: none; }
+
+  .text {
+    position: absolute;
+    margin: 0;
+    white-space: nowrap;
+    line-height: 1.21;
+    color: #000;
+    visibility: hidden;
+  }
+  /* 吹き出しの中の文字(18pt) */
+  #shout { left: 79.89517%; top: 5.70442%; padding: 0.38cqw 0.75cqw; font-size: 1.875cqw; }
+  /* 最後の大きな文字(96pt) */
+  #final { left: 0; top: 37.03704%; padding: 0.38cqw 0.75cqw; font-size: 10cqw; }
+
+  #replay {
+    position: absolute; right: 16px; bottom: 16px;
+    padding: 8px 16px; font-size: 14px; border: 0; border-radius: 8px;
+    background: rgba(20, 20, 20, 0.85); color: #fff; cursor: pointer; display: none;
+  }
+
+  /* 動きが終わったあとに出る「下にスクロール」の案内(白いスライドの上でも見えるよう暗いボタンにする) */
+  #hint {
+    position: absolute; left: 50%; bottom: 20px;
+    transform: translateX(-50%);
+    padding: 12px 28px;
+    border: 0; border-radius: 999px;
+    background: rgba(20, 20, 20, 0.85);
+    color: #fff; font-size: 18px; letter-spacing: 0.1em;
+    font-family: "Yu Gothic", "YuGothic", "Hiragino Sans", "Meiryo", sans-serif;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    cursor: pointer;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.6s;
+    animation: bounce 1.6s ease-in-out infinite;
+  }
+  #hint.visible { opacity: 1; }
+  @keyframes bounce {
+    0%, 100% { transform: translate(-50%, 0); }
+    50%      { transform: translate(-50%, 8px); }
+  }
+
+  /* 下にスクロールしたところの文章 */
+  #story {
+    background: #fff;
+    color: #222;
+    padding: 12vh 24px 16vh;
+    font-family: "Yu Gothic", "YuGothic", "Hiragino Sans", "Meiryo", sans-serif;
+  }
+  #story .inner { max-width: 42em; margin: 0 auto; }
+  #story p {
+    margin: 0 0 1.6em;
+    font-size: clamp(20px, 2.6vw, 30px);   /* 少し大きめの文字 */
+    line-height: 2;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+  <div class="slide" id="slide">
+    <img id="kids" src="kids1.png" alt="">
+    <img id="teacher" src="teacher.png" alt="">
+    <img id="angry" src="angry.png" alt="">
+
+    <svg id="bubble" viewBox="0 0 12192000 6858000">
+      <path d="M 9736604 1277560 L 9846008 1050929 A 1246495 714375 0 1 1 10146055 1262473 Z" fill="none" stroke="#0a2a3a" stroke-width="19050" stroke-linejoin="round"/>
+    </svg>
+
+    <p class="text" id="shout">赤服<br>ちょっとこっち来い💢</p>
+    <p class="text" id="final">これ、おかしくない？</p>
+  </div>
+  <button id="hint" type="button">↓ 下にスクロールして続きを読む</button>
+  <button id="replay">もう一度</button>
+  </div>
+
+  <section id="story">
+    <div class="inner">
+      <p>これは小学生の時に実際にあった出来事です。最初に殴られている方が自分で普段はそのままやられたままなのですが、その時はなぜかやり返そうと思い、やり返している最中にたまたま通りかかった先生にその場を目撃され最初に手を出したのが自分だと双方の話も聞かずに勘違いをして説教をされた。</p>
+      <p>これの何が不公平かというと最初に殴った側にはなんのお咎めもなかったこと。せめて、自分を説教した後に相手も説教をする喧嘩両成敗スタイルならこんな作品は作らなかったかも知れない。</p>
+    </div>
+  </section>
+
+<script>
+  // ===== 設定(ミリ秒) =====
+  const START_DELAY = 500;    // 開いてから始まるまで
+  const PAUSE       = 700;    // 場面と場面の間(PowerPointの「クリック」の代わり)
+  const SWAP_IMAGE  = true;   // true: 1枚目のくるっと回る途中で2枚目のイラストに切り替える
+
+  const $ = id => document.getElementById(id);
+  const kids = $('kids'), teacher = $('teacher'), angry = $('angry');
+  const bubble = $('bubble'), shout = $('shout'), final = $('final');
+  const slide = $('slide');
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const show  = el => el.style.visibility = 'visible';
+  const hide  = el => el.style.visibility = 'hidden';
+
+  // アニメーションを流して、終わったらその状態を確定する
+  async function play(el, keyframes, options) {
+    const anim = el.animate(keyframes, { fill: 'forwards', ...options });
+    await anim.finished;
+    anim.commitStyles();
+    anim.cancel();
+  }
+
+  // ---- 強調「スピン」(右回りが +、左回りが -) ----
+  let angle = 0;
+  async function spin(delta, duration) {
+    const from = angle;
+    angle += delta;
+    await play(kids,
+      [{ transform: `rotate(${from}deg)` }, { transform: `rotate(${angle}deg)` }],
+      { duration, easing: 'linear' });
+  }
+
+  // ---- 開始「旋回(スイベル)」: 横幅が sin 波で伸び縮みしてくるっと回る ----
+  async function swivel(duration) {
+    const frames = [];
+    for (let i = 0; i <= 40; i++) {
+      const t = i / 40;
+      frames.push({ transform: `rotate(${angle}deg) scaleX(${Math.sin(2.5 * Math.PI * t)})` });
+    }
+    // 横幅がゼロになる瞬間(0.4)で、イラストを2枚目に差し替える
+    if (SWAP_IMAGE) setTimeout(() => { kids.src = 'kids2.png'; }, duration * 0.4);
+    await play(kids, frames, { duration, easing: 'linear' });
+  }
+
+  // ---- 先生: 画面の右の外から歩いてくる(登場前は見えない) ----
+  async function teacherEnter(duration) {
+    const W = slide.clientWidth, H = slide.clientHeight;
+    const from = `translate(${0.30807 * W}px, ${-0.01899 * H}px)`;   // 画面の右端の外
+    const to   = `translate(${-0.10208 * W}px, ${-0.02223 * H}px)`;  // 止まる位置
+    teacher.style.transform = from;
+    show(teacher);
+    await play(teacher, [{ transform: from }, { transform: to }],
+      { duration, easing: 'ease-in-out' });
+  }
+
+  // ===== 一連の流れ =====
+  async function run() {
+    await sleep(START_DELAY);
+
+    // 【1枚目】男の子たちがゆらゆら(0.5秒 × 7回)
+    for (const d of [45, -90, 90, -90, 90, -90, 45]) await spin(d, 500);
+    await sleep(PAUSE);
+
+    // くるっと回って、2枚目のイラストへ
+    await swivel(500);
+    await sleep(PAUSE);
+
+    // 【2枚目】またゆらゆら(1秒 × 8回)
+    for (const d of [45, -90, 90, -90, 90, -90, 90, -90]) await spin(d, 1000);
+    await sleep(PAUSE);
+
+    // 先生が右の外から登場
+    await teacherEnter(1000);
+    await sleep(PAUSE);
+
+    // 先生が消えて、怒った先生と吹き出しが出る
+    hide(teacher);
+    await sleep(300);
+    show(angry); show(bubble); show(shout);
+    await sleep(PAUSE * 2);
+
+    // 男の子たちが回って元の向きに戻る
+    await spin(45, 1000);
+    await sleep(PAUSE);
+
+    // 最後のひとこと
+    show(final);
+
+    // 動きが終わったら、下にスクロールできるようにする
+    document.documentElement.classList.remove('locked');
+    const hint = $('hint');
+    hint.style.display = 'block';
+    requestAnimationFrame(() => hint.classList.add('visible'));   // ふわっと表示
+    $('replay').style.display = 'block';
+  }
+
+  // 再読み込みしても必ず一番上から始める
+  history.scrollRestoration = 'manual';
+  window.scrollTo(0, 0);
+  $('replay').addEventListener('click', () => location.reload());
+
+  // 案内をクリックすると、文章のところまでなめらかにスクロール
+  $('hint').addEventListener('click', () => {
+    $('story').scrollIntoView({ behavior: 'smooth' });
+  });
+  // スクロールを始めたら案内は消す
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 40) $('hint').classList.remove('visible');
+  });
+  run();
+</script>
+</body>
+</html>
